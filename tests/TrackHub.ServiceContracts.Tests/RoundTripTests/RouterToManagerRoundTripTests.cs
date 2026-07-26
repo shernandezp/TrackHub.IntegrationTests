@@ -18,12 +18,13 @@ using Common.Mediator;
 using HotChocolate.Execution;
 using ManagerApi;
 using Moq;
+using TrackHub.Manager.Application.AlertEvents.Commands;
 using TrackHub.Manager.Application.GpsIntegration.Commands;
 using TrackHub.Manager.Application.Operators.Queries.Get;
 using TrackHub.Router.Infrastructure.ManagerApi;
 using TrackHub.ServiceContracts.Harness;
 using TrackHub.ServiceContracts.Tests.Harness;
-using TrackHubRouter.Domain.Models;
+using TrackHub.Router.Domain.Models;
 using ManagerModels = TrackHub.Manager.Domain.Models;
 
 namespace TrackHub.ServiceContracts.Tests.RoundTripTests;
@@ -88,9 +89,9 @@ public class RouterToManagerRoundTripTests
             Assert.That(credential.Token, Is.EqualTo("access-token"));
             Assert.That(credential.RefreshToken, Is.EqualTo("refresh-token"));
             Assert.That(credential.TokenExpiration, Is.Not.Null,
-                "Manager's DateTimeOffset must deserialize into the Router's DateTime field");
+                "Manager's DateTimeOffset must deserialize into the Router's DateTimeOffset field");
             Assert.That(credential.TokenExpiration!.Value.ToUniversalTime(),
-                Is.EqualTo(FakeData.TokenExpiration.UtcDateTime));
+                Is.EqualTo(FakeData.TokenExpiration.ToUniversalTime()));
         }
 
         _sender.Verify(s => s.Send(
@@ -161,6 +162,53 @@ public class RouterToManagerRoundTripTests
             Assert.That(device.ProviderDisplayName, Is.EqualTo("Tracker One"));
             Assert.That(device.ProviderMetadataHash, Is.EqualTo("hash-1"));
             Assert.That(device.ProviderStatus, Is.EqualTo("active"));
+        }
+    }
+
+    // Layer B: the Router's alert emitter delivers every DTO field (severity/status
+    // travel as string literals in variables) into the real RecordAlertEventCommand — the command
+    // whose post-commit evaluation creates Pending deliveries (evaluation itself is covered by
+    // Manager's AlertRuleEvaluator unit tests and the smoke flow).
+    [Test]
+    public async Task RecordAlertEvent_DeliversAlertFieldsIntoManagerCommand()
+    {
+        RecordAlertEventCommand? received = null;
+        _sender
+            .Setup(s => s.Send(It.IsAny<RecordAlertEventCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<ManagerModels.AlertEventVm>, CancellationToken>((cmd, _) =>
+                received = (RecordAlertEventCommand)cmd)
+            .ReturnsAsync(new ManagerModels.AlertEventVm(
+                Guid.NewGuid(), FakeData.AccountId, "GpsOperatorPositionSyncFailed", "Warning", "Router",
+                "Operator", FakeData.OperatorId.ToString(), "Open", FakeData.Timestamp, FakeData.Timestamp,
+                null, "sync-failed:key", FakeData.Timestamp));
+
+        var writer = new TrackHub.Router.Infrastructure.ManagerApi.AlertEventWriter(_factory);
+        await writer.RecordAsync(
+            new AlertEventDto(
+                AccountId: FakeData.AccountId,
+                EventType: "GpsOperatorPositionSyncFailed",
+                Severity: "Warning",
+                SourceModule: "Router",
+                ResourceType: "Operator",
+                ResourceId: FakeData.OperatorId.ToString(),
+                Status: "Open",
+                PayloadJson: "{\"error\":\"timeout\"}",
+                DeduplicationKey: "sync-failed:key"),
+            CancellationToken.None);
+
+        Assert.That(received, Is.Not.Null, "the real RecordAlertEventCommand must reach the producer handler");
+        var alertEvent = received!.Value.AlertEvent;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(alertEvent.AccountId, Is.EqualTo(FakeData.AccountId));
+            Assert.That(alertEvent.EventType, Is.EqualTo("GpsOperatorPositionSyncFailed"));
+            Assert.That(alertEvent.Severity, Is.EqualTo("Warning"));
+            Assert.That(alertEvent.SourceModule, Is.EqualTo("Router"));
+            Assert.That(alertEvent.ResourceType, Is.EqualTo("Operator"));
+            Assert.That(alertEvent.ResourceId, Is.EqualTo(FakeData.OperatorId.ToString()));
+            Assert.That(alertEvent.Status, Is.EqualTo("Open"));
+            Assert.That(alertEvent.PayloadJson, Is.EqualTo("{\"error\":\"timeout\"}"));
+            Assert.That(alertEvent.DeduplicationKey, Is.EqualTo("sync-failed:key"));
         }
     }
 }

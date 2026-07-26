@@ -37,9 +37,8 @@ public class RouterToManagerContractTests
     private static IEnumerable<TestCaseData> Calls()
     {
         yield return new TestCaseData("AccountReader.GetAccountsToSync", AccountReader.AccountsToSyncQuery);
-        yield return new TestCaseData("AccountReader.GetAccountToSync", AccountReader.AccountToSyncQuery);
         yield return new TestCaseData("AccountReader.IsFeatureEnabled", AccountReader.ValidateFeatureEnabledQuery);
-        yield return new TestCaseData("AccountReader.GetAccountFeatures", AccountReader.AccountFeaturesQuery);
+        yield return new TestCaseData("AccountReader.GetAllAccountFeatures", AccountReader.AllAccountFeaturesQuery);
         yield return new TestCaseData("AlertEventWriter.Record", AlertEventWriter.RecordAlertEventMutation);
         yield return new TestCaseData("CredentialWriter.UpdateToken", ManagerApi.CredentialWriter.UpdateTokenMutation);
         yield return new TestCaseData("DeviceSyncWriter.Reset", DeviceSyncWriter.WipeDevicesMutation);

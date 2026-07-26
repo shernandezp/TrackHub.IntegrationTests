@@ -17,39 +17,35 @@ using HotChocolate;
 using HotChocolate.Language;
 using HotChocolate.Validation;
 using Microsoft.Extensions.DependencyInjection;
-using TrackHub.Security.Infrastructure.ManagerApi;
 using TrackHub.ServiceContracts.Tests.Harness;
+using TrackHub.TripManagement.Infrastructure.TelemetryApi;
 
 namespace TrackHub.ServiceContracts.Tests.ContractTests;
 
-// Security's user-replication mutations into Manager. Simple CRUD by
-// shape, but they keep the two user stores in sync — a silent drift here desynchronizes
-// identity between services.
+// TripManagement's route-replay read against Telemetry (spec 11 §7.5), issued under the
+// trip_client identity, validated against Telemetry's real, in-process-built schema.
 [TestFixture]
-public class SecurityToManagerContractTests
+public class TripManagementToTelemetryContractTests
 {
     private static readonly DocumentValidator Validator = DocumentValidatorBuilder.New().AddDefaultRules().Build();
     private ISchemaDefinition _schema = null!;
 
     [OneTimeSetUp]
-    public async Task BuildManagerSchema() => _schema = await ProducerSchema.BuildManagerSchemaAsync();
+    public async Task BuildTelemetrySchema() => _schema = await ProducerSchema.BuildTelemetrySchemaAsync();
 
     private static IEnumerable<TestCaseData> Calls()
     {
-        yield return new TestCaseData("ManagerWriter.CreateUser", ManagerWriter.CreateUserMutation);
-        yield return new TestCaseData("ManagerWriter.UpdateUser", ManagerWriter.UpdateUserMutation);
-        yield return new TestCaseData("ManagerWriter.DeleteUser", ManagerWriter.DeleteUserMutation);
-        yield return new TestCaseData("ManagerAuditWriter.CreateAuditEvent", ManagerAuditWriter.CreateAuditEventMutation);
+        yield return new TestCaseData("PositionHistoryClient.GetRange", PositionHistoryClient.PositionHistoryRangeQuery);
     }
 
     [TestCaseSource(nameof(Calls))]
-    public void ProductionMutation_IsValidAgainstManagerSchema(string call, string query)
+    public void ProductionQuery_IsValidAgainstTelemetrySchema(string call, string query)
     {
         var document = Utf8GraphQLParser.Parse(query);
         var result = Validator.Validate(_schema, document);
 
         Assert.That(result.HasErrors, Is.False,
-            () => $"Security→Manager {call} no longer matches the Manager schema: "
+            () => $"TripManagement→Telemetry {call} no longer matches the Telemetry schema: "
                 + string.Join("; ", result.Errors.Select(e => e.Message)));
     }
 }

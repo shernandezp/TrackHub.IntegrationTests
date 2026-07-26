@@ -17,13 +17,14 @@ using Common.Domain.Constants;
 using Common.Mediator;
 using HotChocolate.Execution;
 using Moq;
-using TrackHub.Manager.Application.GeofenceEvents.Commands.ProcessPositions;
+using TrackHub.Geofencing.Application.GeofenceEvents.Commands.ProcessPositions;
 using TrackHub.Router.Infrastructure.GeofenceApi;
 using TrackHub.ServiceContracts.Harness;
-using GeofenceResultVm = TrackHub.Manager.Domain.Models.GeofenceProcessingResultVm;
-using RouterModels = TrackHubRouter.Domain.Models;
+using TrackHub.ServiceContracts.Tests.Harness;
+using GeofenceResultVm = TrackHub.Geofencing.Domain.Models.GeofenceProcessingResultVm;
+using RouterModels = TrackHub.Router.Domain.Models;
 
-namespace TrackHub.ServiceContracts.Geofence.Tests;
+namespace TrackHub.ServiceContracts.Tests.RoundTripTests;
 
 // The Router's REAL GeofenceWriter pushes a position batch through
 // the Geofence service's REAL resolvers — the hot-path feed of geofence event detection.
@@ -41,7 +42,7 @@ public class RouterToGeofenceRoundTripTests
     public async Task BuildGeofenceExecutor()
     {
         _sender = new Mock<ISender>();
-        var executor = await GeofenceProducerSchema.BuildExecutorAsync(_sender.Object);
+        var executor = await ProducerSchema.BuildGeofenceExecutorAsync(_sender.Object);
         _factory = new InProcessGraphQLClientFactory(
             new Dictionary<string, IRequestExecutor> { [Clients.Geofence] = executor });
     }

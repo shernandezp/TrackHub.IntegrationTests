@@ -17,37 +17,36 @@ using HotChocolate;
 using HotChocolate.Language;
 using HotChocolate.Validation;
 using Microsoft.Extensions.DependencyInjection;
-using TrackHub.Reporting.Infrastructure.GraphQLApi;
-using TrackHub.Router.Infrastructure.GeofenceApi;
+using TrackHub.Router.Infrastructure.TripApi;
+using TrackHub.ServiceContracts.Tests.Harness;
 
-namespace TrackHub.ServiceContracts.Geofence.Tests;
+namespace TrackHub.ServiceContracts.Tests.ContractTests;
 
-// Every query the Router and Reporting ship against the Geofence
-// service, validated against its real in-process-built schema.
+// The Router's trip position feed (spec 11 §15): the batch pushed to TripManagement right after
+// the geofence feed, under the router_client/syncworker_client identity. Validated against
+// TripManagement's real, in-process-built schema.
 [TestFixture]
-public class GeofenceContractTests
+public class RouterToTripManagementContractTests
 {
     private static readonly DocumentValidator Validator = DocumentValidatorBuilder.New().AddDefaultRules().Build();
     private ISchemaDefinition _schema = null!;
 
     [OneTimeSetUp]
-    public async Task BuildGeofenceSchema() => _schema = await GeofenceProducerSchema.BuildSchemaAsync();
+    public async Task BuildTripManagementSchema() => _schema = await ProducerSchema.BuildTripManagementSchemaAsync();
 
     private static IEnumerable<TestCaseData> Calls()
     {
-        yield return new TestCaseData("Router→Geofence GeofenceWriter.ProcessPositions", GeofenceWriter.ProcessPositionsMutation);
-        yield return new TestCaseData("Reporting→Geofence GeofenceReader.GetTransportersInGeofence", GeofenceReader.TransportersInGeofenceQuery);
-        yield return new TestCaseData("Reporting→Geofence GeofenceReader.GetGeofenceEvents", GeofenceReader.GeofenceEventsQuery);
+        yield return new TestCaseData("TripPositionWriter.ProcessTripPositions", TripPositionWriter.ProcessTripPositionsMutation);
     }
 
     [TestCaseSource(nameof(Calls))]
-    public void ProductionQuery_IsValidAgainstGeofenceSchema(string call, string query)
+    public void ProductionQuery_IsValidAgainstTripManagementSchema(string call, string query)
     {
         var document = Utf8GraphQLParser.Parse(query);
         var result = Validator.Validate(_schema, document);
 
         Assert.That(result.HasErrors, Is.False,
-            () => $"{call} no longer matches the Geofence schema: "
+            () => $"Router→TripManagement {call} no longer matches the TripManagement schema: "
                 + string.Join("; ", result.Errors.Select(e => e.Message)));
     }
 }

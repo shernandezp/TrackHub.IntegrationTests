@@ -14,18 +14,22 @@
 //
 
 using Common.Domain.Constants;
+using Common.Domain.Enums;
 using Common.Mediator;
 using HotChocolate.Execution;
+using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using TrackHub.Manager.Application.AuditEvents.Commands;
+using TrackHub.Manager.Application.Reports.Queries.GetByCode;
 using TrackHub.Reporting.Domain.Records;
 using TrackHub.Reporting.Infrastructure.GraphQLApi;
 using TrackHub.ServiceContracts.Harness;
 using TrackHub.ServiceContracts.Tests.Harness;
 using TrackHub.Telemetry.Application.GpsIntegration.Queries;
-using TrackHubRouter.Application.Positions.Queries.GetRange;
+using TrackHub.Router.Application.Positions.Queries.GetRange;
 using ManagerAuditVm = TrackHub.Manager.Domain.Models.AuditEventVm;
-using RouterModels = TrackHubRouter.Domain.Models;
+using ManagerReportVm = TrackHub.Manager.Domain.Models.ReportVm;
+using RouterModels = TrackHub.Router.Domain.Models;
 using TelemetryModels = TrackHub.Telemetry.Domain.Models;
 
 namespace TrackHub.ServiceContracts.Tests.RoundTripTests;
@@ -228,10 +232,107 @@ public class ReportingToManagerRoundTripTests
             Assert.That(audit.Action, Is.EqualTo("ReportExported"));
             Assert.That(audit.ResourceType, Is.EqualTo("Report"));
             Assert.That(audit.ResourceId, Is.EqualTo("gps.syncStatistics"));
-            Assert.That(audit.Result, Is.EqualTo("Success"));
+            // Unified with the security audit forwarder's literal (both write "Succeeded").
+            Assert.That(audit.Result, Is.EqualTo("Succeeded"));
             Assert.That(audit.NewValuesJson, Does.Contain("\"rowCount\":42"));
             Assert.That(audit.NewValuesJson, Does.Contain("gps.syncStatistics"));
             Assert.That(audit.CorrelationId, Is.EqualTo("corr-report-1"));
         }
+    }
+
+    // The execution pipeline's governed-catalog lookup: the real ReportCatalogReader sends `reportByCode`
+    // to the real Manager producer (GetReportByCodeQuery → ReportVm?) and maps every catalog field onto
+    // Reporting's ReportMetadataVm. Fully-populated row: non-null feature key, manager-only, pdf-capable,
+    // non-zero sort order, a ReportType enum value on the producer side (not part of the wire selection).
+    [Test]
+    public async Task GetReportByCode_MapsEveryCatalogFieldOntoReportingMetadata()
+    {
+        const string code = "gps.provider-health-summary";
+        _sender
+            .Setup(s => s.Send(It.Is<GetReportByCodeQuery>(q => q.Code == code), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManagerReportVm?)new ManagerReportVm(
+                ReportId: FakeData.SyncRunId,
+                Code: code,
+                Description: "Operator provider health summary",
+                Type: ReportType.Custom,
+                TypeId: (short)ReportType.Custom,
+                Active: true,
+                Category: "Gps",
+                RequiredFeatureKey: "gps.integration",
+                ManagerOnly: true,
+                SupportsPdf: true,
+                SortOrder: 42));
+
+        var reader = new ReportCatalogReader(_factory, new MemoryCache(new MemoryCacheOptions()));
+        var metadata = await reader.GetReportByCodeAsync(code, CancellationToken.None);
+
+        Assert.That(metadata, Is.Not.Null, "a known catalog code must map to a ReportMetadataVm");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(metadata!.Value.Code, Is.EqualTo(code));
+            Assert.That(metadata.Value.Description, Is.EqualTo("Operator provider health summary"));
+            Assert.That(metadata.Value.Category, Is.EqualTo("Gps"));
+            Assert.That(metadata.Value.RequiredFeatureKey, Is.EqualTo("gps.integration"));
+            Assert.That(metadata.Value.ManagerOnly, Is.True);
+            Assert.That(metadata.Value.SupportsPdf, Is.True);
+            Assert.That(metadata.Value.SortOrder, Is.EqualTo(42));
+            Assert.That(metadata.Value.Active, Is.True);
+        }
+
+        _sender.Verify(s => s.Send(
+            It.Is<GetReportByCodeQuery>(q => q.Code == code), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // A global, manager-only row with a null description exercises nullable-field coercion across the wire:
+    // description stays null and requiredFeatureKey (null = global) round-trips as null.
+    [Test]
+    public async Task GetReportByCode_MapsNullDescriptionAndGlobalFeatureKey()
+    {
+        const string code = "accounts-by-status";
+        _sender
+            .Setup(s => s.Send(It.Is<GetReportByCodeQuery>(q => q.Code == code), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManagerReportVm?)new ManagerReportVm(
+                ReportId: FakeData.SyncRunId,
+                Code: code,
+                Description: null,
+                Type: ReportType.Basic,
+                TypeId: (short)ReportType.Basic,
+                Active: true,
+                Category: "Administration",
+                RequiredFeatureKey: null,
+                ManagerOnly: true,
+                SupportsPdf: true,
+                SortOrder: 5));
+
+        var reader = new ReportCatalogReader(_factory, new MemoryCache(new MemoryCacheOptions()));
+        var metadata = await reader.GetReportByCodeAsync(code, CancellationToken.None);
+
+        Assert.That(metadata, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(metadata!.Value.Code, Is.EqualTo(code));
+            Assert.That(metadata.Value.Description, Is.Null, "a null description must survive the round-trip as null");
+            Assert.That(metadata.Value.Category, Is.EqualTo("Administration"));
+            Assert.That(metadata.Value.RequiredFeatureKey, Is.Null, "a global report has no required feature key");
+            Assert.That(metadata.Value.ManagerOnly, Is.True);
+            Assert.That(metadata.Value.SupportsPdf, Is.True);
+            Assert.That(metadata.Value.SortOrder, Is.EqualTo(5));
+        }
+    }
+
+    // Unknown code: the Manager query resolves to null; the reader returns null (the pipeline then raises
+    // REPORT_NOT_FOUND). Fresh cache so the null result cannot be a stale hit from another case.
+    [Test]
+    public async Task GetReportByCode_UnknownCode_ReturnsNull()
+    {
+        const string code = "does-not-exist";
+        _sender
+            .Setup(s => s.Send(It.Is<GetReportByCodeQuery>(q => q.Code == code), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManagerReportVm?)null);
+
+        var reader = new ReportCatalogReader(_factory, new MemoryCache(new MemoryCacheOptions()));
+        var metadata = await reader.GetReportByCodeAsync(code, CancellationToken.None);
+
+        Assert.That(metadata, Is.Null, "an unknown report code must map to a null ReportMetadataVm");
     }
 }

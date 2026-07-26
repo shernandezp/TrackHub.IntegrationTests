@@ -24,7 +24,7 @@ namespace TrackHub.ServiceContracts.Tests.ContractTests;
 
 // Every query the Router ships against Telemetry is validated as a
 // document against Telemetry's real, in-process-built schema. This guards the seam created by
-// the Telemetry extraction (spec 01.3 Slice B) — the newest, most change-prone coupling.
+// the Telemetry extraction — the newest, most change-prone coupling.
 [TestFixture]
 public class RouterToTelemetryContractTests
 {
@@ -37,6 +37,7 @@ public class RouterToTelemetryContractTests
     private static IEnumerable<TestCaseData> Calls()
     {
         yield return new TestCaseData("TransporterPositionReader.GetByOperator", TransporterPositionReader.TransporterPositionByOperatorQuery);
+        yield return new TestCaseData("TransporterPositionReader.GetByOperators", TransporterPositionReader.TransporterPositionsByOperatorsQuery);
         yield return new TestCaseData("PositionHistoryReader.GetRange", PositionHistoryReader.PositionHistoryRangeQuery);
         yield return new TestCaseData("PositionWriter.AddOrUpdate", PositionWriter.BulkTransporterPositionMutation);
         yield return new TestCaseData("PositionHistorySystemWriter.AppendRange", PositionHistorySystemWriter.AppendPositionHistoryBatchMutation);

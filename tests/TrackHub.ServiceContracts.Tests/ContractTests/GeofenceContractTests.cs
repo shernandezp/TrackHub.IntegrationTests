@@ -17,39 +17,38 @@ using HotChocolate;
 using HotChocolate.Language;
 using HotChocolate.Validation;
 using Microsoft.Extensions.DependencyInjection;
-using TrackHub.Security.Infrastructure.ManagerApi;
+using TrackHub.Reporting.Infrastructure.GraphQLApi;
+using TrackHub.Router.Infrastructure.GeofenceApi;
 using TrackHub.ServiceContracts.Tests.Harness;
 
 namespace TrackHub.ServiceContracts.Tests.ContractTests;
 
-// Security's user-replication mutations into Manager. Simple CRUD by
-// shape, but they keep the two user stores in sync — a silent drift here desynchronizes
-// identity between services.
+// Every query the Router and Reporting ship against the Geofence
+// service, validated against its real in-process-built schema.
 [TestFixture]
-public class SecurityToManagerContractTests
+public class GeofenceContractTests
 {
     private static readonly DocumentValidator Validator = DocumentValidatorBuilder.New().AddDefaultRules().Build();
     private ISchemaDefinition _schema = null!;
 
     [OneTimeSetUp]
-    public async Task BuildManagerSchema() => _schema = await ProducerSchema.BuildManagerSchemaAsync();
+    public async Task BuildGeofenceSchema() => _schema = await ProducerSchema.BuildGeofenceSchemaAsync();
 
     private static IEnumerable<TestCaseData> Calls()
     {
-        yield return new TestCaseData("ManagerWriter.CreateUser", ManagerWriter.CreateUserMutation);
-        yield return new TestCaseData("ManagerWriter.UpdateUser", ManagerWriter.UpdateUserMutation);
-        yield return new TestCaseData("ManagerWriter.DeleteUser", ManagerWriter.DeleteUserMutation);
-        yield return new TestCaseData("ManagerAuditWriter.CreateAuditEvent", ManagerAuditWriter.CreateAuditEventMutation);
+        yield return new TestCaseData("Router→Geofence GeofenceWriter.ProcessPositions", GeofenceWriter.ProcessPositionsMutation);
+        yield return new TestCaseData("Reporting→Geofence GeofenceReader.GetTransportersInGeofence", GeofenceReader.TransportersInGeofenceQuery);
+        yield return new TestCaseData("Reporting→Geofence GeofenceReader.GetGeofenceEvents", GeofenceReader.GeofenceEventsQuery);
     }
 
     [TestCaseSource(nameof(Calls))]
-    public void ProductionMutation_IsValidAgainstManagerSchema(string call, string query)
+    public void ProductionQuery_IsValidAgainstGeofenceSchema(string call, string query)
     {
         var document = Utf8GraphQLParser.Parse(query);
         var result = Validator.Validate(_schema, document);
 
         Assert.That(result.HasErrors, Is.False,
-            () => $"Security→Manager {call} no longer matches the Manager schema: "
+            () => $"{call} no longer matches the Geofence schema: "
                 + string.Join("; ", result.Errors.Select(e => e.Message)));
     }
 }

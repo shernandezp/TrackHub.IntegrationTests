@@ -19,13 +19,17 @@ using HotChocolate.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using TrackHub.ServiceContracts.Harness;
-using TrackHubRouter.Web.GraphQL;
+using TrackHub.Router.Web.GraphQL;
+using GeofenceMutation = TrackHub.Geofencing.Web.GraphQL.Mutation.Mutation;
+using GeofenceQuery = TrackHub.Geofencing.Web.GraphQL.Query.Query;
 using ManagerMutation = TrackHub.Manager.Web.GraphQL.Mutation.Mutation;
 using ManagerQuery = TrackHub.Manager.Web.GraphQL.Query.Query;
-using RouterMutation = TrackHubRouter.Web.GraphQL.Mutation;
-using RouterQuery = TrackHubRouter.Web.GraphQL.Query;
+using RouterMutation = TrackHub.Router.Web.GraphQL.Mutation.Mutation;
+using RouterQuery = TrackHub.Router.Web.GraphQL.Query.Query;
 using SecurityMutation = TrackHub.Security.Web.GraphQL.Mutation.Mutation;
 using SecurityQuery = TrackHub.Security.Web.GraphQL.Query.Query;
+using TripMutation = TrackHub.TripManagement.Web.GraphQL.Mutation.Mutation;
+using TripQuery = TrackHub.TripManagement.Web.GraphQL.Query.Query;
 using TelemetryMutation = TrackHub.Telemetry.Web.GraphQL.Mutation.Mutation;
 using TelemetryQuery = TrackHub.Telemetry.Web.GraphQL.Query.Query;
 
@@ -34,8 +38,7 @@ namespace TrackHub.ServiceContracts.Tests.Harness;
 /// <summary>
 /// Producer wrappers over <see cref="ProducerSchemaBuilder"/>: the real Query/Mutation types
 /// each service ships. Router is the one deviating producer — its two extra error filters are
-/// applied exactly as its Program.cs does. (Geofence lives in a separate test project because
-/// its assemblies share Manager's assembly names.)
+/// applied exactly as its Program.cs does.
 /// </summary>
 internal static class ProducerSchema
 {
@@ -51,6 +54,12 @@ internal static class ProducerSchema
     public static Task<ISchemaDefinition> BuildRouterSchemaAsync()
         => ProducerSchemaBuilder.BuildSchemaAsync<RouterQuery, RouterMutation>(Mock.Of<ISender>(), ConfigureRouter);
 
+    public static Task<ISchemaDefinition> BuildGeofenceSchemaAsync()
+        => ProducerSchemaBuilder.BuildSchemaAsync<GeofenceQuery, GeofenceMutation>(Mock.Of<ISender>());
+
+    public static Task<ISchemaDefinition> BuildTripManagementSchemaAsync()
+        => ProducerSchemaBuilder.BuildSchemaAsync<TripQuery, TripMutation>(Mock.Of<ISender>());
+
     public static Task<IRequestExecutor> BuildManagerExecutorAsync(ISender sender)
         => ProducerSchemaBuilder.BuildExecutorAsync<ManagerQuery, ManagerMutation>(sender);
 
@@ -62,6 +71,12 @@ internal static class ProducerSchema
 
     public static Task<IRequestExecutor> BuildRouterExecutorAsync(ISender sender)
         => ProducerSchemaBuilder.BuildExecutorAsync<RouterQuery, RouterMutation>(sender, ConfigureRouter);
+
+    public static Task<IRequestExecutor> BuildGeofenceExecutorAsync(ISender sender)
+        => ProducerSchemaBuilder.BuildExecutorAsync<GeofenceQuery, GeofenceMutation>(sender);
+
+    public static Task<IRequestExecutor> BuildTripManagementExecutorAsync(ISender sender)
+        => ProducerSchemaBuilder.BuildExecutorAsync<TripQuery, TripMutation>(sender);
 
     // Mirrors Router's Program.cs deviation from the shared chain.
     private static void ConfigureRouter(HotChocolate.Execution.Configuration.IRequestExecutorBuilder builder)

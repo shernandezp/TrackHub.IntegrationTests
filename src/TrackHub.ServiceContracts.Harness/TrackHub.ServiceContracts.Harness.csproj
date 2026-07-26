@@ -10,6 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.1.0" />
-    <PackageReference Include="TrackHubCommon.Web" Version="1.2.34" />
+    <PackageReference Include="TrackHubCommon.Web" Version="1.0.12" />
   </ItemGroup>
 </Project>

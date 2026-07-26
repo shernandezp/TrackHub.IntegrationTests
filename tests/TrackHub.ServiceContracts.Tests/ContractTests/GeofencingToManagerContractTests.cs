@@ -17,16 +17,16 @@ using HotChocolate;
 using HotChocolate.Language;
 using HotChocolate.Validation;
 using Microsoft.Extensions.DependencyInjection;
-using TrackHub.Security.Infrastructure.ManagerApi;
+using TrackHub.Geofencing.Infrastructure.ManagerApi;
 using TrackHub.ServiceContracts.Tests.Harness;
 
 namespace TrackHub.ServiceContracts.Tests.ContractTests;
 
-// Security's user-replication mutations into Manager. Simple CRUD by
-// shape, but they keep the two user stores in sync — a silent drift here desynchronizes
-// identity between services.
+// Every document the Geofencing service ships against Manager (alert emission and background
+// job-run recording under the geofence_client identity) is validated against
+// Manager's real, in-process-built schema.
 [TestFixture]
-public class SecurityToManagerContractTests
+public class GeofencingToManagerContractTests
 {
     private static readonly DocumentValidator Validator = DocumentValidatorBuilder.New().AddDefaultRules().Build();
     private ISchemaDefinition _schema = null!;
@@ -36,20 +36,18 @@ public class SecurityToManagerContractTests
 
     private static IEnumerable<TestCaseData> Calls()
     {
-        yield return new TestCaseData("ManagerWriter.CreateUser", ManagerWriter.CreateUserMutation);
-        yield return new TestCaseData("ManagerWriter.UpdateUser", ManagerWriter.UpdateUserMutation);
-        yield return new TestCaseData("ManagerWriter.DeleteUser", ManagerWriter.DeleteUserMutation);
-        yield return new TestCaseData("ManagerAuditWriter.CreateAuditEvent", ManagerAuditWriter.CreateAuditEventMutation);
+        yield return new TestCaseData("AlertEmitter.Record", AlertEmitter.RecordAlertEventMutation);
+        yield return new TestCaseData("BackgroundJobRunRecorder.Record", BackgroundJobRunRecorder.CreateBackgroundJobRunMutation);
     }
 
     [TestCaseSource(nameof(Calls))]
-    public void ProductionMutation_IsValidAgainstManagerSchema(string call, string query)
+    public void ProductionQuery_IsValidAgainstManagerSchema(string call, string query)
     {
         var document = Utf8GraphQLParser.Parse(query);
         var result = Validator.Validate(_schema, document);
 
         Assert.That(result.HasErrors, Is.False,
-            () => $"Security→Manager {call} no longer matches the Manager schema: "
+            () => $"Geofencing→Manager {call} no longer matches the Manager schema: "
                 + string.Join("; ", result.Errors.Select(e => e.Message)));
     }
 }

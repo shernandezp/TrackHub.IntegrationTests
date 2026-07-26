@@ -59,7 +59,12 @@ internal static class FakeData
             Satellites: 12,
             Mileage: 12345.6,
             Hourmeter: 220.5,
-            Temperature: 21.5));
+            Temperature: 21.5,
+            Extra: ExtraJson));
+
+    // Open attribute-bag payload: provider signals beyond the 5 promoted
+    // fields travel as a JSON object string in `attributes.extra`.
+    public const string ExtraJson = "{\"fuelLevelPct\":\"80\",\"rpm\":\"1500\"}";
 
     public static TelemetryModels.TransporterPositionHistoryVm TelemetryHistoryRow() => new(
         TransporterPositionHistoryId: Guid.Parse("88888888-8888-8888-8888-888888888888"),

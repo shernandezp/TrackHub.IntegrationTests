@@ -5,16 +5,13 @@
   </Folder>
   <!--
     Inter-service GraphQL contract tests (specs/25-integration-testing-strategy.md).
-    The test projects reference the sibling service repositories by relative path; all
+    The test project references the sibling service repositories by relative path; all
     TrackHub repositories must be cloned side-by-side with this one for the solution to build.
-    The Geofence pair lives in its own test project because TrackHub.Geofencing's assemblies
-    share Manager's assembly names and cannot be loaded alongside them in one process.
   -->
   <Folder Name="/src/">
     <Project Path="src/TrackHub.ServiceContracts.Harness/TrackHub.ServiceContracts.Harness.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/TrackHub.ServiceContracts.Geofence.Tests/TrackHub.ServiceContracts.Geofence.Tests.csproj" />
     <Project Path="tests/TrackHub.ServiceContracts.Tests/TrackHub.ServiceContracts.Tests.csproj" />
   </Folder>
 </Solution>
