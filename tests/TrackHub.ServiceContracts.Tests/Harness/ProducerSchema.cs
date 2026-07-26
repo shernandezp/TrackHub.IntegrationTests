@@ -28,6 +28,8 @@ using RouterMutation = TrackHub.Router.Web.GraphQL.Mutation.Mutation;
 using RouterQuery = TrackHub.Router.Web.GraphQL.Query.Query;
 using SecurityMutation = TrackHub.Security.Web.GraphQL.Mutation.Mutation;
 using SecurityQuery = TrackHub.Security.Web.GraphQL.Query.Query;
+using TripMutation = TrackHub.TripManagement.Web.GraphQL.Mutation.Mutation;
+using TripQuery = TrackHub.TripManagement.Web.GraphQL.Query.Query;
 using TelemetryMutation = TrackHub.Telemetry.Web.GraphQL.Mutation.Mutation;
 using TelemetryQuery = TrackHub.Telemetry.Web.GraphQL.Query.Query;
 
@@ -55,6 +57,9 @@ internal static class ProducerSchema
     public static Task<ISchemaDefinition> BuildGeofenceSchemaAsync()
         => ProducerSchemaBuilder.BuildSchemaAsync<GeofenceQuery, GeofenceMutation>(Mock.Of<ISender>());
 
+    public static Task<ISchemaDefinition> BuildTripManagementSchemaAsync()
+        => ProducerSchemaBuilder.BuildSchemaAsync<TripQuery, TripMutation>(Mock.Of<ISender>());
+
     public static Task<IRequestExecutor> BuildManagerExecutorAsync(ISender sender)
         => ProducerSchemaBuilder.BuildExecutorAsync<ManagerQuery, ManagerMutation>(sender);
 
@@ -69,6 +74,9 @@ internal static class ProducerSchema
 
     public static Task<IRequestExecutor> BuildGeofenceExecutorAsync(ISender sender)
         => ProducerSchemaBuilder.BuildExecutorAsync<GeofenceQuery, GeofenceMutation>(sender);
+
+    public static Task<IRequestExecutor> BuildTripManagementExecutorAsync(ISender sender)
+        => ProducerSchemaBuilder.BuildExecutorAsync<TripQuery, TripMutation>(sender);
 
     // Mirrors Router's Program.cs deviation from the shared chain.
     private static void ConfigureRouter(HotChocolate.Execution.Configuration.IRequestExecutorBuilder builder)

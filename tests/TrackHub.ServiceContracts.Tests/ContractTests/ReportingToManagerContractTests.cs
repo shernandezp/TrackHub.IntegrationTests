@@ -56,6 +56,11 @@ public class ReportingToManagerContractTests
         yield return new TestCaseData("DocumentReportReader.TransporterDocumentCompliance", DocumentReportReader.TransporterDocumentComplianceQuery);
         yield return new TestCaseData("DocumentReportReader.SharesByAccount", DocumentReportReader.SharesByAccountQuery);
         yield return new TestCaseData("DocumentReportReader.SearchDocuments", DocumentReportReader.SearchDocumentsQuery);
+
+        // Workforce report readers (spec 09 §13).
+        yield return new TestCaseData("WorkforceReportReader.DriversByAccount", WorkforceReportReader.DriversByAccountQuery);
+        yield return new TestCaseData("WorkforceReportReader.DriverQualifications", WorkforceReportReader.DriverQualificationsQuery);
+        yield return new TestCaseData("WorkforceReportReader.DriverAssignmentHistory", WorkforceReportReader.DriverAssignmentHistoryQuery);
     }
 
     [TestCaseSource(nameof(Calls))]

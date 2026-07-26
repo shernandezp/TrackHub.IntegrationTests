@@ -34,6 +34,8 @@ public class SchemaSdlExport
         ("geofencing.graphql", ProducerSchema.BuildGeofenceSchemaAsync),
         ("router.graphql", ProducerSchema.BuildRouterSchemaAsync),
         ("telemetry.graphql", ProducerSchema.BuildTelemetrySchemaAsync),
+        // File name must equal the frontend's GRAPHQL_ENDPOINTS key (`tripManagement`), spec 11 §8.
+        ("tripManagement.graphql", ProducerSchema.BuildTripManagementSchemaAsync),
     ];
 
     [Test]

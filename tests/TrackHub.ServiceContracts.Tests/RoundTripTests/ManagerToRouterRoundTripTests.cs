@@ -53,10 +53,12 @@ public class ManagerToRouterRoundTripTests
             .Callback<IRequest<bool>, CancellationToken>((cmd, _) => received = (TriggerOperatorSyncCommand)cmd)
             .ReturnsAsync(true);
 
+        var correlationId = Guid.NewGuid().ToString();
         var dispatcher = new RouterSyncDispatcher(_factory);
         var accepted = await dispatcher.DispatchManualSyncAsync(
             FakeData.AccountId,
             FakeData.OperatorId,
+            correlationId,
             resetDeviceCatalog: true,
             autoAssignNewDevices: false,
             CancellationToken.None);
@@ -70,8 +72,8 @@ public class ManagerToRouterRoundTripTests
             Assert.That(received!.Value.TriggerType, Is.EqualTo("MANUAL"));
             Assert.That(received!.Value.ResetDeviceCatalog, Is.True);
             Assert.That(received!.Value.AutoAssignNewDevices, Is.False);
-            Assert.That(Guid.TryParse(received!.Value.CorrelationId, out _), Is.True,
-                "the dispatcher must stamp a correlation id the Router can propagate");
+            Assert.That(received!.Value.CorrelationId, Is.EqualTo(correlationId),
+                "the correlation id born in Manager's handler must reach the Router command unchanged");
         }
     }
 }

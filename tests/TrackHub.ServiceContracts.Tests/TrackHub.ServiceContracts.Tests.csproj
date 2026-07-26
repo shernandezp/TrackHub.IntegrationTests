@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\..\TrackHubSecurity\src\Web\Web.csproj" />
     <ProjectReference Include="..\..\..\TrackHubRouter\src\Web\Web.csproj" />
     <ProjectReference Include="..\..\..\TrackHub.Geofencing\src\Web\Web.csproj" />
+    <ProjectReference Include="..\..\..\TrackHub.TripManagement\src\Web\Web.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="NUnit.Framework" />
