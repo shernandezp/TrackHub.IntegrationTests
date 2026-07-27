@@ -4,12 +4,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <TrackHubCommonVersion>1.0.13</TrackHubCommonVersion>
   </PropertyGroup>
+  <!-- Local override point: restores pick up property overrides (e.g. TrackHubCommonVersion) from an
+       optional sibling file that is not part of this repository. -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.Edition.props" Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.Edition.props')" />
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.1.0" />
-    <PackageReference Include="TrackHubCommon.Web" Version="1.0.12" />
+    <PackageReference Include="TrackHubCommon.Web" Version="$(TrackHubCommonVersion)" />
   </ItemGroup>
 </Project>
