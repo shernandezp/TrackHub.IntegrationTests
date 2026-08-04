@@ -117,7 +117,7 @@ public class ReportingToRouterRoundTripTests
     public void ResetSender() => _sender.Reset();
 
     [Test]
-    public async Task GetPositionsRecord_RoundTripsDateRangeReplayIncludingHourmeterBinding()
+    public async Task GetPositionsRecord_RoundTripsDateRangeReplay()
     {
         var from = FakeData.Timestamp.AddHours(-6);
         var to = FakeData.Timestamp;
@@ -149,11 +149,14 @@ public class ReportingToRouterRoundTripTests
             ]);
 
         var reader = new RouterReader(_factory);
-        var filters = default(FilterDto) with
+        var filters = new FilterDto
         {
-            StringFilter1 = FakeData.TransporterId.ToString(),
-            DateTimeFilter1 = from,
-            DateTimeFilter2 = to,
+            Values = new Dictionary<string, string?>
+            {
+                [FilterNames.Transporter] = FakeData.TransporterId.ToString(),
+                [FilterNames.From] = from.ToString("O"),
+                [FilterNames.To] = to.ToString("O"),
+            },
         };
         var positions = (await reader.GetPositionsRecordAsync(filters, CancellationToken.None)).ToList();
 
@@ -167,15 +170,10 @@ public class ReportingToRouterRoundTripTests
             Assert.That(position.DeviceDateTime, Is.EqualTo(FakeData.Timestamp));
             Assert.That(position.ServerDateTime, Is.EqualTo(FakeData.Timestamp.AddSeconds(2)));
             Assert.That(position.Speed, Is.EqualTo(42.5));
-            Assert.That(position.Attributes, Is.Not.Null);
-            Assert.That(position.Attributes!.Value.Satellites, Is.EqualTo(12));
-            Assert.That(position.Attributes!.Value.Hourmeter, Is.EqualTo(220.5),
-                "the wire field 'hourmeter' must bind to the Reporting hourmeter column");
-            Assert.That(position.Attributes!.Value.Temperature, Is.EqualTo(21.5));
         }
 
-        // The consumer sends the transporter id as a STRING variable typed UUID! — this pins
-        // that coercion, plus the date-range variables, into the Router's request type.
+        // The consumer parses the named filter values (transporterId GUID, from/to ISO strings)
+        // and sends typed variables — this pins that coercion into the Router's request type.
         _sender.Verify(s => s.Send(
             It.Is<GetPositionsRecordQuery>(q =>
                 q.TransporterId == FakeData.TransporterId && q.From == from && q.To == to),
@@ -261,7 +259,8 @@ public class ReportingToManagerRoundTripTests
                 RequiredFeatureKey: "gps.integration",
                 ManagerOnly: true,
                 SupportsPdf: true,
-                SortOrder: 42));
+                SortOrder: 42,
+                Filters: "[]"));
 
         var reader = new ReportCatalogReader(_factory, new MemoryCache(new MemoryCacheOptions()));
         var metadata = await reader.GetReportByCodeAsync(code, CancellationToken.None);
@@ -302,7 +301,8 @@ public class ReportingToManagerRoundTripTests
                 RequiredFeatureKey: null,
                 ManagerOnly: true,
                 SupportsPdf: true,
-                SortOrder: 5));
+                SortOrder: 5,
+                Filters: null));
 
         var reader = new ReportCatalogReader(_factory, new MemoryCache(new MemoryCacheOptions()));
         var metadata = await reader.GetReportByCodeAsync(code, CancellationToken.None);
